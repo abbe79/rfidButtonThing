@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <SPI.h>
@@ -5,28 +6,27 @@
 #include <WiFiManager.h>  // https://github.com/tzapu/WiFiManager
 #include <PubSubClient.h> // https://github.com/knolleary/pubsubclient
 
-#define RST_PIN 0
-#define SS_PIN  15
-#define HOST "rfidButtonThing"
-#define MQTT_SRV "nas.local"
-#define MQTT_USR NULL
-#define MQTT_PWD NULL
-#define TOPIC "devices/rfidButtonThing/command"
+constexpr byte pinResetRFID = 0;
+constexpr byte pinSSRFID = 15;
+constexpr const char* hostName = "rfidButtonThing";
+constexpr const char* mqttServer = "nas.local";
+constexpr const char* mqttTopicRFID = "devices/rfidButtonThing/rfid";
+constexpr const char* mqttTopicCmd  = "devices/rfidButtonThing/cmd";
+constexpr const char* mqttTopicWill = "devices/rfidButtonThing/state";
 
-MFRC522 mfrc522(SS_PIN, RST_PIN);
+MFRC522 mfrc522(pinSSRFID, pinResetRFID);
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 void mqttReconnect() {
   Serial.print(F("Attempting MQTT connection..."));
-  if (client.connect(HOST, MQTT_USR, MQTT_PWD, TOPIC, 1, false, "down")) {
-  //if (client.connect(HOST)) {
+  if (client.connect(hostName, NULL, NULL, mqttTopicWill, 1, false, "0")) {
     Serial.println(F("connected"));
-    client.publish(TOPIC, "up");
+    client.publish(mqttTopicWill, "1");
   } else {
-    Serial.print("failed, rc=");
+    Serial.print(F("failed, rc="));
     Serial.print(client.state());
-    Serial.println(" try again...");
+    Serial.println(F(" try again..."));
     delay(500);
   }
 }
@@ -39,7 +39,7 @@ void setup() {
   WiFiManager wifiManager;
   wifiManager.setTimeout(300);
 
-  if(!wifiManager.autoConnect(HOST)) {
+  if(!wifiManager.autoConnect(hostName)) {
     Serial.println(F("Failed to connect"));
     delay(3000);
     ESP.reset();
@@ -47,7 +47,7 @@ void setup() {
   }
 
   Serial.println(F("WiFI connected"));
-  client.setServer(MQTT_SRV, 1883);
+  client.setServer(mqttServer, 1883);
   mqttReconnect();
 
 	Serial.println(F("Initialize MFRC522"));
@@ -82,7 +82,7 @@ void loop() {
 
   String rfidString = readCard();
   if(!rfidString.isEmpty()){
-    client.publish(TOPIC, rfidString.c_str());
+    client.publish(mqttTopicRFID, rfidString.c_str());
   }
   delay(100);
 
