@@ -5,11 +5,18 @@
 #include <MFRC522.h>      // https://github.com/miguelbalboa/rfid
 #include <WiFiManager.h>  // https://github.com/tzapu/WiFiManager
 #include <PubSubClient.h> // https://github.com/knolleary/pubsubclient
+#include <Bounce2.h>      // https://github.com/thomasfredericks/Bounce2
 
-constexpr byte pinResetRFID = 0;
-constexpr byte pinSSRFID = 15;
-constexpr const char* hostName = "rfidButtonThing";
-constexpr const char* mqttServer = "nas.local";
+constexpr byte pinButtonPlay = 16; // D0
+constexpr byte pinButtonUp   = 5;  // D1
+
+constexpr byte pinButtonDown = 4;  // D2
+constexpr byte pinResetRFID  = 0;  // D3
+constexpr byte pinSSRFID     = 15; // D8
+
+constexpr byte buttonDebounceTime = 20;
+constexpr const char* hostName      = "rfidButtonThing";
+constexpr const char* mqttServer    = "nas.local";
 constexpr const char* mqttTopicRFID = "devices/rfidButtonThing/rfid";
 constexpr const char* mqttTopicCmd  = "devices/rfidButtonThing/cmd";
 constexpr const char* mqttTopicWill = "devices/rfidButtonThing/state";
@@ -17,6 +24,9 @@ constexpr const char* mqttTopicWill = "devices/rfidButtonThing/state";
 MFRC522 mfrc522(pinSSRFID, pinResetRFID);
 WiFiClient espClient;
 PubSubClient client(espClient);
+Button buttonPlay = Button();
+Button buttonUp   = Button();
+Button buttonDown = Button();
 
 void mqttReconnect() {
   Serial.print(F("Attempting MQTT connection..."));
@@ -55,11 +65,27 @@ void setup() {
 	mfrc522.PCD_Init();
 	delay(5);
 	mfrc522.PCD_DumpVersionToSerial();
+
+  Serial.println(F("Initialize Bounce2"));
+  // GPIO16 has no pullup, so do this the other way round 
+  buttonPlay.attach(pinButtonPlay, INPUT_PULLDOWN_16);
+  buttonPlay.interval(buttonDebounceTime);
+  buttonPlay.setPressedState(HIGH);
+
+  buttonUp.attach(pinButtonUp, INPUT_PULLUP);
+  buttonUp.interval(buttonDebounceTime);
+  buttonUp.setPressedState(LOW);
+
+  buttonDown.attach(pinButtonDown, INPUT_PULLUP);
+  buttonDown.interval(buttonDebounceTime);
+  buttonDown.setPressedState(LOW);
+  
+  Serial.println(F("Ready"));
 }
 
-String readCard(){
-  String result;
+void readCard(){
   if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
+    String result;
     char buffer[3];
     for (byte i = 0; i < mfrc522.uid.size; i++) {
       itoa(mfrc522.uid.uidByte[i], buffer, 16);
@@ -70,8 +96,10 @@ String readCard(){
     } 
     Serial.print(F("Found card "));
     Serial.println(result);
+    client.publish(mqttTopicRFID, result.c_str());
+  } else {
+    Serial.println(F("Could not read card"));
   }
-  return result;
 }
 
 void loop() {
@@ -79,12 +107,21 @@ void loop() {
     mqttReconnect();
   }
   client.loop();
+  buttonPlay.update();
+  buttonUp.update();
+  buttonDown.update();
 
-  String rfidString = readCard();
-  if(!rfidString.isEmpty()){
-    client.publish(mqttTopicRFID, rfidString.c_str());
+  if(buttonPlay.pressed()){
+    Serial.println(F("Button playPause pressed"));
+    readCard();
+    client.publish(mqttTopicCmd, "playPause");
+  } else if(buttonUp.pressed()){
+    Serial.println(F("Button up pressed"));
+    client.publish(mqttTopicCmd, "up");
+  } else if(buttonDown.pressed()){
+    Serial.println(F("Button down pressed"));
+    client.publish(mqttTopicCmd, "down");
   }
-  delay(100);
 
   yield();
 }
