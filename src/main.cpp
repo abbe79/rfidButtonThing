@@ -83,7 +83,7 @@ void setup() {
   Serial.println(F("Ready"));
 }
 
-void readCard(){
+bool readCard(){
   if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
     String result;
     char buffer[3];
@@ -91,15 +91,16 @@ void readCard(){
       itoa(mfrc522.uid.uidByte[i], buffer, 16);
       result += buffer;
       if((i+1) < mfrc522.uid.size){
-        result += ':';
+        result += '-';
       }
     } 
     Serial.print(F("Found card "));
     Serial.println(result);
     client.publish(mqttTopicRFID, result.c_str());
-  } else {
-    Serial.println(F("Could not read card"));
+    return true;
   }
+  Serial.println(F("Could not read card"));
+  return false;
 }
 
 void loop() {
@@ -113,8 +114,11 @@ void loop() {
 
   if(buttonPlay.pressed()){
     Serial.println(F("Button playPause pressed"));
-    readCard();
-    client.publish(mqttTopicCmd, "playPause");
+    // check if there is a card present
+    if(!readCard()){
+      // if no card was found send a playPause
+      client.publish(mqttTopicCmd, "playPause");
+    }
   } else if(buttonUp.pressed()){
     Serial.println(F("Button up pressed"));
     client.publish(mqttTopicCmd, "up");
