@@ -16,7 +16,7 @@ constexpr byte pinSSRFID     = 15; // D8
 
 constexpr byte buttonDebounceTime = 20;
 constexpr const char* hostName      = "rfidButtonThing";
-constexpr const char* mqttServer    = "nas.local";
+constexpr const char* mqttServer    = "192.168.1.9";
 constexpr const char* mqttTopicRFID = "devices/rfidButtonThing/rfid";
 constexpr const char* mqttTopicCmd  = "devices/rfidButtonThing/cmd";
 constexpr const char* mqttTopicWill = "devices/rfidButtonThing/state";
