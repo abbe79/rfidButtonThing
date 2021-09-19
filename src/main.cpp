@@ -24,9 +24,9 @@ constexpr const char* mqttTopicWill = "devices/rfidButtonThing/state";
 MFRC522 mfrc522(pinSSRFID, pinResetRFID);
 WiFiClient espClient;
 PubSubClient client(espClient);
-Button buttonPlay = Button();
-Button buttonUp   = Button();
-Button buttonDown = Button();
+Bounce2::Button buttonPlay = Bounce2::Button();
+Bounce2::Button buttonUp   = Bounce2::Button();
+Bounce2::Button buttonDown = Bounce2::Button();
 unsigned long lastUpMsg = 0;
 
 void sendUpMsg() {
