@@ -27,6 +27,16 @@ PubSubClient client(espClient);
 Button buttonPlay = Button();
 Button buttonUp   = Button();
 Button buttonDown = Button();
+unsigned long lastUpMsg = 0;
+
+void sendUpMsg() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastUpMsg >= 60 * 1000) {
+    lastUpMsg = currentMillis;
+    Serial.println(F("sending alive message"));
+    client.publish(mqttTopicWill, "1");    
+  }
+}
 
 void mqttReconnect() {
   Serial.print(F("Attempting MQTT connection..."));
@@ -126,6 +136,8 @@ void loop() {
     Serial.println(F("Button down pressed"));
     client.publish(mqttTopicCmd, "down");
   }
+
+  sendUpMsg();
 
   yield();
 }
